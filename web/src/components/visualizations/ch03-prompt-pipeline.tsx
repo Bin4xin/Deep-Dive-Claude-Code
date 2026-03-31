@@ -1,0 +1,170 @@
+"use client";
+
+import { motion, AnimatePresence } from "framer-motion";
+import { useSteppedVisualization } from "@/hooks/useSteppedVisualization";
+import { StepControls } from "@/components/visualizations/shared/step-controls";
+
+// 4 层 Prompt 管线
+interface PipelineLayer {
+  id: string;
+  label: string;
+  desc: string;
+  color: string;
+  tokens: string;
+}
+
+const LAYERS: PipelineLayer[] = [
+  { id: "base", label: "L1: 基础身份", desc: "你是 Claude，一个 AI 编程助手...", color: "bg-blue-600", tokens: "~2K" },
+  { id: "tools", label: "L2: 工具定义", desc: "50+ 工具 Schema (FileRead, BashTool, ...)", color: "bg-emerald-600", tokens: "~15K" },
+  { id: "claudemd", label: "L3: CLAUDE.md", desc: "项目配置: 代码风格、约定、自定义规则", color: "bg-purple-600", tokens: "~5K" },
+  { id: "context", label: "L4: 动态上下文", desc: "打开的文件、git 状态、LSP 诊断", color: "bg-amber-600", tokens: "~8K" },
+];
+
+// 每步展示哪些层 + 输出
+const VISIBLE_LAYERS_PER_STEP: number[] = [0, 1, 2, 3, 4, 4, 4];
+
+// CLAUDE.md 查找路径
+const CLAUDEMD_SEARCH = [
+  "~/.claude/CLAUDE.md",
+  "~/project/CLAUDE.md",
+  "~/project/.claude/CLAUDE.md",
+  "~/project/src/CLAUDE.md",
+];
+
+const OUTPUT_PER_STEP: string[] = [
+  "",
+  "identity: \"You are Claude, an AI assistant...\"",
+  "tools: [FileRead, FileEdit, BashTool, ...]\n  schemas: 50+ JSON Schema definitions",
+  "CLAUDE.md found at: ~/project/CLAUDE.md\n  rules: [\"Use TypeScript strict mode\",\n          \"Run tests before commit\",\n          \"Prefer functional style\"]",
+  "context: {\n  openFiles: [\"auth.ts\", \"index.ts\"],\n  gitBranch: \"fix/login-bug\",\n  diagnostics: 2 errors, 1 warning\n}",
+  "// 最终组装\nsystemPrompt = [\n  baseIdentity,     // 2K tokens\n  toolDefinitions,  // 15K tokens\n  claudeMdRules,    // 5K tokens\n  dynamicContext,   // 8K tokens\n].join('\\n');      // 总计 ~30K",
+  "// Token 预算裁剪\nif (totalTokens > budget) {\n  // 优先保留: L1 > L2 > L3 > L4\n  trimDynamicContext();\n  if (still > budget) truncateClaudeMd();\n}",
+];
+
+const STEP_INFO = [
+  { title: "Prompt 组装管线", desc: "System Prompt 不是一个字符串，而是 4 层动态组装的管线" },
+  { title: "L1: 基础身份", desc: "定义 Claude 的角色和核心行为规范，约 2K tokens" },
+  { title: "L2: 工具定义", desc: "50+ 工具的 JSON Schema 注入，让模型知道可以用什么工具" },
+  { title: "L3: CLAUDE.md 配置", desc: "从项目目录逐级向上搜索 CLAUDE.md，注入项目级规则" },
+  { title: "L4: 动态上下文", desc: "注入当前打开的文件、git 状态、LSP 诊断信息" },
+  { title: "最终组装", desc: "4 层内容拼接成完整 System Prompt，约 30K tokens" },
+  { title: "预算裁剪", desc: "如果超出 Token 预算，按优先级从 L4 → L3 逐步裁剪" },
+];
+
+export default function PromptPipelineVisualization() {
+  const viz = useSteppedVisualization({ totalSteps: 7, autoPlayInterval: 2500 });
+  const visibleCount = VISIBLE_LAYERS_PER_STEP[viz.currentStep];
+
+  return (
+    <section className="min-h-[520px] space-y-4">
+      <h2 className="text-xl font-semibold text-zinc-100">Prompt 组装管线</h2>
+
+      <div className="rounded-lg border border-zinc-700 bg-zinc-900 p-4">
+        <div className="flex flex-col gap-4 lg:flex-row">
+          {/* 左侧：管线层 */}
+          <div className="w-full lg:w-[50%]">
+            <div className="mb-3 font-mono text-xs text-zinc-500">System Prompt Pipeline</div>
+            <div className="space-y-3">
+              {LAYERS.map((layer, i) => {
+                const isVisible = i < visibleCount;
+                const isActive = i === visibleCount - 1 && viz.currentStep <= 4;
+
+                return (
+                  <motion.div
+                    key={layer.id}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{
+                      opacity: isVisible ? 1 : 0.2,
+                      x: isVisible ? 0 : -20,
+                      scale: isActive ? 1.02 : 1,
+                    }}
+                    transition={{ duration: 0.4, delay: isActive ? 0 : 0.1 }}
+                    className={`rounded-lg border p-3 ${isActive ? "border-white/30 ring-1 ring-white/10" : "border-zinc-800"}`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className={`h-3 w-3 rounded-full ${layer.color}`} />
+                        <span className={`text-sm font-semibold ${isVisible ? "text-zinc-100" : "text-zinc-600"}`}>
+                          {layer.label}
+                        </span>
+                      </div>
+                      <span className="font-mono text-[10px] text-zinc-500">{layer.tokens}</span>
+                    </div>
+                    <p className={`mt-1 text-xs ${isVisible ? "text-zinc-400" : "text-zinc-700"}`}>
+                      {layer.desc}
+                    </p>
+
+                    {/* CLAUDE.md 搜索路径 */}
+                    {layer.id === "claudemd" && isActive && (
+                      <div className="mt-2 space-y-1">
+                        {CLAUDEMD_SEARCH.map((path, j) => (
+                          <motion.div
+                            key={path}
+                            initial={{ opacity: 0, x: -10 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: j * 0.2 }}
+                            className={`flex items-center gap-2 font-mono text-[10px] ${j === 1 ? "text-emerald-400" : "text-zinc-600"}`}
+                          >
+                            <span>{j === 1 ? "✓" : "✗"}</span>
+                            <span>{path}</span>
+                          </motion.div>
+                        ))}
+                      </div>
+                    )}
+                  </motion.div>
+                );
+              })}
+
+              {/* Token 总计 */}
+              {viz.currentStep >= 5 && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="flex items-center justify-between rounded-lg border border-zinc-700 bg-zinc-950 p-3"
+                >
+                  <span className="text-xs text-zinc-400">Total System Prompt</span>
+                  <span className="font-mono text-sm font-bold text-white">~30K tokens</span>
+                </motion.div>
+              )}
+            </div>
+          </div>
+
+          {/* 右侧：输出 */}
+          <div className="w-full lg:w-[50%]">
+            <div className="mb-2 font-mono text-xs text-zinc-500">组装输出</div>
+            <div className="min-h-[360px] rounded-md border border-zinc-800 bg-zinc-950 p-3">
+              <AnimatePresence mode="wait">
+                {OUTPUT_PER_STEP[viz.currentStep] ? (
+                  <motion.pre
+                    key={viz.currentStep}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="whitespace-pre-wrap font-mono text-xs leading-relaxed text-zinc-300"
+                  >
+                    {OUTPUT_PER_STEP[viz.currentStep]}
+                  </motion.pre>
+                ) : (
+                  <motion.div
+                    key="empty"
+                    className="flex h-full min-h-[300px] items-center justify-center text-xs text-zinc-600"
+                  >
+                    点击播放查看组装过程
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <StepControls
+        currentStep={viz.currentStep} totalSteps={viz.totalSteps}
+        onPrev={viz.prev} onNext={viz.next} onReset={viz.reset}
+        isPlaying={viz.isPlaying} onToggleAutoPlay={viz.toggleAutoPlay}
+        stepTitle={STEP_INFO[viz.currentStep].title}
+        stepDescription={STEP_INFO[viz.currentStep].desc}
+      />
+    </section>
+  );
+}

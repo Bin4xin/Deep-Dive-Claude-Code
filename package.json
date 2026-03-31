@@ -1,0 +1,31 @@
+{
+  "name": "deep-dive-claude-code-demos",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "12 个可运行的 TypeScript 演示，还原 Claude Code 各核心机制",
+  "scripts": {
+    "s01": "npx tsx agents/s01_agent_loop.ts",
+    "s02": "npx tsx agents/s02_tool_system.ts",
+    "s03": "npx tsx agents/s03_prompt_pipeline.ts",
+    "s04": "npx tsx agents/s04_bash_security.ts",
+    "s05": "npx tsx agents/s05_permissions.ts",
+    "s06": "npx tsx agents/s06_context_compact.ts",
+    "s07": "npx tsx agents/s07_mcp_protocol.ts",
+    "s08": "npx tsx agents/s08_plugin_loader.ts",
+    "s09": "npx tsx agents/s09_multi_agent.ts",
+    "s10": "npx tsx agents/s10_transport.ts",
+    "s11": "npx tsx agents/s11_bootstrap.ts",
+    "s12": "npx tsx agents/s12_production.ts",
+    "start:web": "cd web && npx next dev",
+    "build:web  ": "cd web && npx next build"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.80.0",
+    "dotenv": "^16.4.0"
+  },
+  "devDependencies": {
+    "tsx": "^4.21.0",
+    "typescript": "^5.0.0"
+  }
+}
