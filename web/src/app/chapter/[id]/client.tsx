@@ -6,6 +6,8 @@ import { SourceViewer } from "@/components/code/source-viewer";
 import { DocRenderer } from "@/components/docs/doc-renderer";
 import { Tabs } from "@/components/ui/tabs";
 import { CHAPTER_META, LAYER_COLORS } from "@/lib/constants";
+import { useLocale } from "@/lib/locale-context";
+import { UI_TEXT } from "@/lib/i18n";
 
 // 演示代码源码（按新章节顺序）
 const DEMO_SOURCES: Record<string, { source: string; filename: string }> = {
@@ -371,14 +373,16 @@ interface ChapterDetailClientProps {
 }
 
 export function ChapterDetailClient({ chapterId }: ChapterDetailClientProps) {
+  const { locale } = useLocale();
+  const t = UI_TEXT[locale];
   const ch = CHAPTER_META[chapterId];
   if (!ch) return null;
 
   const tabs = [
-    { id: "learn", label: "可视化" },
-    { id: "simulate", label: "模拟器" },
-    { id: "code", label: "源码" },
-    { id: "deep-dive", label: "深入" },
+    { id: "learn", label: t.chapter_tab_visual },
+    { id: "simulate", label: t.chapter_tab_sim },
+    { id: "code", label: t.chapter_tab_code },
+    { id: "deep-dive", label: t.chapter_tab_deep },
   ];
 
   const demo = DEMO_SOURCES[chapterId];
@@ -395,7 +399,7 @@ export function ChapterDetailClient({ chapterId }: ChapterDetailClientProps) {
             {activeTab === "learn" && (
               <div className="space-y-6">
                 <div className="card">
-                  <h3 className="mb-3 text-lg font-semibold">核心源码文件</h3>
+                  <h3 className="mb-3 text-lg font-semibold">{t.chapter_source_files}</h3>
                   <div className="space-y-1">
                     {ch.sourceFiles.map((f) => (
                       <div key={f} className="flex items-center gap-2">
@@ -404,14 +408,14 @@ export function ChapterDetailClient({ chapterId }: ChapterDetailClientProps) {
                       </div>
                     ))}
                   </div>
-                  <div className="mt-3 text-xs text-zinc-500">总大小约 {ch.sourceSize}</div>
+                  <div className="mt-3 text-xs text-zinc-500">{t.chapter_total_size} {ch.sourceSize}</div>
                 </div>
 
                 <div className="card">
-                  <h3 className="mb-3 text-lg font-semibold">运行演示</h3>
+                  <h3 className="mb-3 text-lg font-semibold">{t.chapter_run_demo}</h3>
                   <div className="rounded-lg bg-zinc-950 p-4 font-mono text-sm">
-                    <div className="text-zinc-500"># {ch.needsApiKey ? "需要配置 API Key" : "可直接运行"}</div>
-                    <div className="text-emerald-400">$ cd deep-dive</div>
+                    <div className="text-zinc-500"># {ch.needsApiKey ? t.chapter_needs_key : t.chapter_runnable}</div>
+                    <div className="text-emerald-400">$ cd Deep-Dive-Claude-Code</div>
                     <div className="text-emerald-400">$ npx tsx agents/{ch.demoFile}</div>
                   </div>
                 </div>
@@ -425,7 +429,7 @@ export function ChapterDetailClient({ chapterId }: ChapterDetailClientProps) {
             )}
             {activeTab === "code" && !demo && (
               <div className="flex h-64 items-center justify-center text-sm text-zinc-500">
-                该章节的源码示例正在开发中...
+                {t.chapter_code_wip}
               </div>
             )}
             {activeTab === "deep-dive" && (

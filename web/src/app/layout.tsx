@@ -1,18 +1,21 @@
 import type { Metadata } from "next";
+import { LocaleProvider } from "@/lib/locale-context";
 import { Header } from "@/components/layout/header";
 import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Deep Dive Claude Code",
-  description: "从源码理解生产级 AI 编程助手 — 13 章由浅入深",
+  description: "Understand a production-grade AI coding assistant through 13 progressive chapters",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="zh-CN">
+    <html lang="en" suppressHydrationWarning>
       <body className="min-h-screen antialiased">
-        <Header />
-        <main>{children}</main>
+        <LocaleProvider>
+          <Header />
+          <main>{children}</main>
+        </LocaleProvider>
       </body>
     </html>
   );
